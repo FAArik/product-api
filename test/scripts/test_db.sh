@@ -12,7 +12,7 @@ echo "Database productapp created"
 docker exec -it postgres-test psql -u postgres -d productapp -c "
 create table if not exist products 
 (
-    id bigserial not null primary key,
+    id bigserial not null primary key,  
     name varchar(255) not null,
     price double precision not null,
     discount double precision,
