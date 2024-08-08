@@ -9,8 +9,8 @@ docker exec -it postgres-test psql -U postgres -d postgres -c "CREATE DATABASE p
 sleep 3 
 echo "Database productapp created"
 
-docker exec -it postgres-test psql -u postgres -d productapp -c "
-create table if not exist products 
+docker exec -it postgres-test psql -U postgres -d productapp -c "
+create table if not exists products 
 (
     id bigserial not null primary key,  
     name varchar(255) not null,

@@ -2,14 +2,21 @@ package persistence
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"product-app/domain"
 
+	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/labstack/gommon/log"
 )
 
 type IProductRepository interface {
 	GetAllProducts() []domain.Product
+	GetAllProductsByStore(storeName string) []domain.Product
+	AddProduct(product domain.Product) error
+	GetById(productId int64) (domain.Product, error)
+	DeleteById(productId int64) error
 }
 
 type ProductRepository struct {
@@ -30,6 +37,76 @@ func (productRepository *ProductRepository) GetAllProducts() []domain.Product {
 
 		return []domain.Product{}
 	}
+	return extractProductsFromRows(prodRows)
+}
+func (productRepository *ProductRepository) GetAllProductsByStore(storeName string) []domain.Product {
+	ctx := context.Background()
+	getProductsByStoreSql := `SELECT * FROM products where store = $1`
+	prodRows, err := productRepository.dbPool.Query(ctx, getProductsByStoreSql, storeName)
+	if err != nil {
+		log.Error("Error while getting all products %v", err)
+
+		return []domain.Product{}
+	}
+	return extractProductsFromRows(prodRows)
+}
+func (productRepository *ProductRepository) AddProduct(product domain.Product) error {
+	ctx := context.Background()
+	insert_sql := `INSERT INTO products(name,price,discount,store) VALUES ($1,$2,$3,$4)`
+	addedProduct, insertErr := productRepository.dbPool.Exec(ctx, insert_sql, product.Name, product.Price, product.Discount, product.Store)
+	if insertErr != nil {
+		log.Error("Failed to add new product ", insertErr)
+		return insertErr
+	}
+	log.Info(fmt.Printf("Product addet with %v", addedProduct))
+	return nil
+}
+func (productRepository *ProductRepository) GetById(productId int64) (domain.Product, error) {
+	ctx := context.Background()
+	getByIdSql := `select * from products where id = $1`
+	queryRow := productRepository.dbPool.QueryRow(ctx, getByIdSql, productId)
+	var id int64
+	var name string
+	var price float32
+	var discount float32
+	var store string
+	err := queryRow.Scan(&id, &name, &price, &discount, &store)
+
+	if err != nil && err.Error() == "no rows in result set" {
+
+		return domain.Product{}, errors.New(fmt.Sprintf("Product not found with id %d", productId))
+	}
+
+	if err != nil {
+		return domain.Product{}, errors.New(fmt.Sprintf("Error while getting product with id %d", productId))
+	}
+
+	return domain.Product{
+		Id:       id,
+		Name:     name,
+		Price:    price,
+		Discount: discount,
+		Store:    store,
+	}, nil
+}
+func (productRepository *ProductRepository) DeleteById(productId int64) error {
+	ctx := context.Background()
+	_, err := productRepository.GetById(productId)
+
+	if err != nil {
+		return errors.New("Product not found")
+	}
+	deleteSql := "DELETE FROM products where id=$1"
+	_, deleteErr := productRepository.dbPool.Exec(ctx, deleteSql, productId)
+	if deleteErr != nil {
+		return errors.New(fmt.Sprintf("Error while deleting product with id %d", productId))
+	}
+	log.Info("Product deleted")
+
+	return nil
+}
+
+func extractProductsFromRows(prodRows pgx.Rows) []domain.Product {
 	var products = []domain.Product{}
 	var id int64
 	var name string
