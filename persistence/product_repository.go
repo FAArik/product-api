@@ -17,6 +17,7 @@ type IProductRepository interface {
 	AddProduct(product domain.Product) error
 	GetById(productId int64) (domain.Product, error)
 	DeleteById(productId int64) error
+	UpdatePrice(productId int64, newPrice float32) error
 }
 
 type ProductRepository struct {
@@ -105,7 +106,6 @@ func (productRepository *ProductRepository) DeleteById(productId int64) error {
 
 	return nil
 }
-
 func extractProductsFromRows(prodRows pgx.Rows) []domain.Product {
 	var products = []domain.Product{}
 	var id int64
@@ -124,4 +124,20 @@ func extractProductsFromRows(prodRows pgx.Rows) []domain.Product {
 		})
 	}
 	return products
+}
+func (productRepository *ProductRepository) UpdatePrice(productId int64, newPrice float32) error {
+	ctx := context.Background()
+
+	_, getByIdErr := productRepository.GetById(productId)
+	if getByIdErr != nil {
+		return errors.New(fmt.Sprintf("product with id %d not found ", productId))
+	}
+
+	var updateSql = `Update products set price =$1 where id =$2`
+	_, err := productRepository.dbPool.Exec(ctx, updateSql, newPrice, productId)
+	if err != nil {
+		return errors.New(fmt.Sprintf("Error while updating the product with id %d", productId))
+	}
+	log.Info("Product %d price updated with new price %v", productId, newPrice)
+	return nil
 }

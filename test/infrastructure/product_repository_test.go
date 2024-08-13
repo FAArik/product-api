@@ -128,13 +128,25 @@ func TestGetById(t *testing.T) {
 func TestDeleteById(t *testing.T) {
 	setup(ctx, dbPool)
 
-	t.Run("GetProductById", func(t *testing.T) {
+	t.Run("DeleteById", func(t *testing.T) {
 		err := productRepository.DeleteById(1)
 		products := productRepository.GetAllProducts()
 		_, getByIdErr := productRepository.GetById(1)
 		assert.Equal(t, 3, len(products))
 		assert.Equal(t, nil, err)
 		assert.Equal(t, "Product not found with id 1", getByIdErr.Error())
+	})
+	clear(ctx, dbPool)
+}
+
+func TestUpdatePrice(t *testing.T) {
+	setup(ctx, dbPool)
+	t.Run("UpdatePrice", func(t *testing.T) {
+		productBeforeUpdate, _ := productRepository.GetById(1)
+		assert.Equal(t, float32(3000.0), productBeforeUpdate.Price)
+		productRepository.UpdatePrice(1, 4000)
+		productAfterUpdate, _ := productRepository.GetById(1)
+		assert.Equal(t, float32(4000.0), productAfterUpdate.Price)
 	})
 	clear(ctx, dbPool)
 }
